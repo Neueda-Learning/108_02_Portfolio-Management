@@ -2,7 +2,7 @@ package com.example.controller;
 
 import com.example.dto.*;
 import com.example.service.PortfolioRecommendationService;
-import com.example.service.PortfolioService;
+import com.example.service.PortfolioServiceInterface;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -17,17 +17,17 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 public class PortfolioController {
     
-    private final PortfolioService portfolioService;
+    private final PortfolioServiceInterface portfolioService;
     private final PortfolioRecommendationService portfolioRecommendationService;
     
-    public PortfolioController(PortfolioService portfolioService,
+    public PortfolioController(PortfolioServiceInterface portfolioService,
                                PortfolioRecommendationService portfolioRecommendationService) {
         this.portfolioService = portfolioService;
         this.portfolioRecommendationService = portfolioRecommendationService;
     }
     
     @GetMapping
-    @Operation(summary = "Get all portfolios hi", description = "Retrieve a list of all portfolios")
+    @Operation(summary = "Get all portfolios", description = "Retrieve a list of all portfolios")
     public ResponseEntity<List<PortfolioDTO>> getAllPortfolios() {
         List<PortfolioDTO> portfolios = portfolioService.getAllPortfolios();
         return ResponseEntity.ok(portfolios);

@@ -1,12 +1,14 @@
 package com.example.controller;
 
 import com.example.dto.StockPriceDTO;
-import com.example.service.MarketDataService;
+import com.example.model.AssetType;
+import com.example.service.MarketDataServiceInterface;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/market-data")
@@ -14,10 +16,17 @@ import java.math.BigDecimal;
 @CrossOrigin(origins = "*")
 public class MarketDataController {
     
-    private final MarketDataService marketDataService;
+    private final MarketDataServiceInterface marketDataService;
     
-    public MarketDataController(MarketDataService marketDataService) {
+    public MarketDataController(MarketDataServiceInterface marketDataService) {
         this.marketDataService = marketDataService;
+    }
+
+    @GetMapping("/stocks")
+    @Operation(summary = "Get tickers by asset type", description = "Provide asset type (e.g. STOCK, CRYPTO, ETF) to fetch matching ticker symbols")
+    public ResponseEntity<List<String>> getAvailableStocks(@RequestParam AssetType assetType)
+    {
+        return ResponseEntity.ok(marketDataService.getTickersByAssetType(assetType));
     }
     
     @GetMapping("/price/{ticker}")
