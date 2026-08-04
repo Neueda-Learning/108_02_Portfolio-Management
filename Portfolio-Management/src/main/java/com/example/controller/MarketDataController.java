@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 @RestController
 @RequestMapping("/api/market-data")
 @Tag(name = "Market Data", description = "APIs for fetching live market data")
-@CrossOrigin(origins = "*")
 public class MarketDataController {
     
     private final MarketDataService marketDataService;

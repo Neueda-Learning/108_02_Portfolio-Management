@@ -14,7 +14,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/portfolios")
 @Tag(name = "Portfolio Management", description = "APIs for managing portfolios")
-@CrossOrigin(origins = "*")
 public class PortfolioController {
     
     private final PortfolioService portfolioService;
@@ -28,8 +27,10 @@ public class PortfolioController {
     
     @GetMapping
     @Operation(summary = "Get all portfolios hi", description = "Retrieve a list of all portfolios")
-    public ResponseEntity<List<PortfolioDTO>> getAllPortfolios() {
-        List<PortfolioDTO> portfolios = portfolioService.getAllPortfolios();
+    public ResponseEntity<List<PortfolioDTO>> getAllPortfolios(@RequestParam(name = "userId", required = false) Long userId) {
+        List<PortfolioDTO> portfolios = (userId == null)
+                ? portfolioService.getAllPortfolios()
+                : portfolioService.getPortfoliosByUserId(userId);
         return ResponseEntity.ok(portfolios);
     }
     

@@ -15,7 +15,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/portfolios/{portfolioId}/items")
 @Tag(name = "Portfolio Items", description = "APIs for managing portfolio items")
-@CrossOrigin(origins = "*")
 public class PortfolioItemController {
     
     private final PortfolioItemService portfolioItemService;
