@@ -75,6 +75,13 @@ Swagger UI is available when backend is running:
 
 - `http://localhost:8080/swagger-ui/index.html`
 
+## User Stories and Task Tracking
+
+The complete user stories, task details, acceptance criteria, effort tracking, and development progress are available in the Excel document below:
+
+User Stories Excel File:
+-`https://drive.google.com/file/d/1yvIxXZolYCR7A0-qyF2Y-1kuDaQj9FlZ/view?usp=drive_link`
+
 ## Notes
 
 - Database schema is initialized from `src/main/resources/schema.sql` at startup.
