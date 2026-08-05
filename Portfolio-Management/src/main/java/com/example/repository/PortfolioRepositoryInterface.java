@@ -9,6 +9,10 @@ public interface PortfolioRepositoryInterface {
 
     List<Portfolio> findAll();
 
+    List<Portfolio> findByUserId(Long userId);
+
+    Optional<Portfolio> findByUserIdAndPortfolioNumber(Long userId, Long portfolioNumber);
+
     Optional<Portfolio> findById(Long id);
 
     Optional<Portfolio> findByName(String name);
@@ -16,6 +20,8 @@ public interface PortfolioRepositoryInterface {
     boolean existsById(Long id);
 
     boolean existsByName(String name);
+
+    Long getNextPortfolioNumberByUserId(Long userId);
 
     Portfolio save(Portfolio portfolio);
 

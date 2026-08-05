@@ -3,6 +3,7 @@ package com.example.repository;
 import com.example.model.AssetType;
 import com.example.model.Portfolio;
 import com.example.model.PortfolioItem;
+import com.example.repository.PortfolioItemRepositoryInterface;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -159,3 +160,4 @@ public class PortfolioItemRepository implements PortfolioItemRepositoryInterface
         return item;
     }
 }
+
