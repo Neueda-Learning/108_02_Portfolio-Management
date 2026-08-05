@@ -1,13 +1,16 @@
 package com.example.model;
 
+import com.example.model.AssetType;
+import com.example.model.Portfolio;
+
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public class PortfolioItem {
 
     private Long id;
-    private Portfolio portfolio;
-    private AssetType assetType;
+    private com.example.model.Portfolio portfolio;
+    private com.example.model.AssetType assetType;
     private String symbol;
     private String name;
     private BigDecimal quantity;
@@ -18,11 +21,10 @@ public class PortfolioItem {
     private LocalDateTime updatedAt;
     private String notes;
 
-    // Constructors
     public PortfolioItem() {
     }
 
-    public PortfolioItem(Long id, Portfolio portfolio, AssetType assetType, String symbol, String name,
+    public PortfolioItem(Long id, com.example.model.Portfolio portfolio, com.example.model.AssetType assetType, String symbol, String name,
                          BigDecimal quantity, BigDecimal purchasePrice, BigDecimal currentPrice,
                          LocalDateTime purchaseDate, LocalDateTime createdAt, LocalDateTime updatedAt, String notes) {
         this.id = id;
@@ -39,14 +41,13 @@ public class PortfolioItem {
         this.notes = notes;
     }
 
-    // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
-    public Portfolio getPortfolio() { return portfolio; }
+    public com.example.model.Portfolio getPortfolio() { return portfolio; }
     public void setPortfolio(Portfolio portfolio) { this.portfolio = portfolio; }
 
-    public AssetType getAssetType() { return assetType; }
+    public com.example.model.AssetType getAssetType() { return assetType; }
     public void setAssetType(AssetType assetType) { this.assetType = assetType; }
 
     public String getSymbol() { return symbol; }
@@ -76,7 +77,6 @@ public class PortfolioItem {
     public String getNotes() { return notes; }
     public void setNotes(String notes) { this.notes = notes; }
 
-    // Calculated methods
     public BigDecimal getTotalInvestment() {
         return purchasePrice.multiply(quantity);
     }
@@ -102,3 +102,4 @@ public class PortfolioItem {
                 .multiply(new BigDecimal("100"));
     }
 }
+

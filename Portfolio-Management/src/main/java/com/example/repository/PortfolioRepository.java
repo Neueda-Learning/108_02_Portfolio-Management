@@ -4,6 +4,8 @@ import com.example.model.InvestmentGoal;
 import com.example.model.InvestmentHorizon;
 import com.example.model.Portfolio;
 import com.example.model.RiskLevel;
+import com.example.repository.PortfolioItemRepositoryInterface;
+import com.example.repository.PortfolioRepositoryInterface;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -18,7 +20,7 @@ import java.util.Optional;
 public class PortfolioRepository implements PortfolioRepositoryInterface {
 
     private final JdbcTemplate jdbc;
-    private final PortfolioItemRepositoryInterface portfolioItemRepository;
+    private final com.example.repository.PortfolioItemRepositoryInterface portfolioItemRepository;
 
     public PortfolioRepository(JdbcTemplate jdbc, PortfolioItemRepositoryInterface portfolioItemRepository) {
         this.jdbc = jdbc;
@@ -30,6 +32,8 @@ public class PortfolioRepository implements PortfolioRepositoryInterface {
     private Portfolio mapRow(ResultSet rs, int rowNum) throws SQLException {
         Portfolio p = new Portfolio();
         p.setId(rs.getLong("id"));
+        p.setUserId(rs.getLong("user_id"));
+        p.setPortfolioNumber(rs.getLong("portfolio_number"));
         p.setName(rs.getString("name"));
         p.setDescription(rs.getString("description"));
         p.setCurrency(rs.getString("currency"));
@@ -56,6 +60,23 @@ public class PortfolioRepository implements PortfolioRepositoryInterface {
         return portfolios;
     }
 
+    public List<Portfolio> findByUserId(Long userId) {
+        List<Portfolio> portfolios = jdbc.query("SELECT * FROM portfolios WHERE user_id = ? ORDER BY portfolio_number", this::mapRow, userId);
+        portfolios.forEach(this::loadWithItems);
+        return portfolios;
+    }
+
+    public Optional<Portfolio> findByUserIdAndPortfolioNumber(Long userId, Long portfolioNumber) {
+        List<Portfolio> list = jdbc.query(
+                "SELECT * FROM portfolios WHERE user_id = ? AND portfolio_number = ?",
+                this::mapRow,
+                userId,
+                portfolioNumber
+        );
+        if (list.isEmpty()) return Optional.empty();
+        return Optional.of(loadWithItems(list.get(0)));
+    }
+
     public Optional<Portfolio> findById(Long id) {
         List<Portfolio> list = jdbc.query("SELECT * FROM portfolios WHERE id = ?", this::mapRow, id);
         if (list.isEmpty()) return Optional.empty();
@@ -78,6 +99,15 @@ public class PortfolioRepository implements PortfolioRepositoryInterface {
         Integer count = jdbc.queryForObject(
                 "SELECT COUNT(*) FROM portfolios WHERE name = ?", Integer.class, name);
         return count != null && count > 0;
+    }
+
+    public Long getNextPortfolioNumberByUserId(Long userId) {
+        Long next = jdbc.queryForObject(
+                "SELECT COALESCE(MAX(portfolio_number), 0) + 1 FROM portfolios WHERE user_id = ?",
+                Long.class,
+                userId
+        );
+        return next != null ? next : 1L;
     }
 
     // ── Persistence Methods ──────────────────────────────────────────────────────
@@ -104,18 +134,20 @@ public class PortfolioRepository implements PortfolioRepositoryInterface {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(con -> {
             PreparedStatement ps = con.prepareStatement(
-                    "INSERT INTO portfolios (name, description, currency, risk_level, investment_goal, target_value, investment_horizon, created_at, updated_at) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO portfolios (user_id, portfolio_number, name, description, currency, risk_level, investment_goal, target_value, investment_horizon, created_at, updated_at) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     Statement.RETURN_GENERATED_KEYS);
-            ps.setString(1, portfolio.getName());
-            ps.setString(2, portfolio.getDescription());
-            ps.setString(3, portfolio.getCurrency());
-            ps.setString(4, portfolio.getRiskLevel() != null ? portfolio.getRiskLevel().name() : null);
-            ps.setString(5, portfolio.getInvestmentGoal() != null ? portfolio.getInvestmentGoal().name() : null);
-            ps.setBigDecimal(6, portfolio.getTargetValue());
-            ps.setString(7, portfolio.getInvestmentHorizon() != null ? portfolio.getInvestmentHorizon().name() : null);
-            ps.setTimestamp(8, Timestamp.valueOf(portfolio.getCreatedAt()));
-            ps.setTimestamp(9, Timestamp.valueOf(portfolio.getUpdatedAt()));
+            ps.setLong(1, portfolio.getUserId());
+            ps.setLong(2, portfolio.getPortfolioNumber());
+            ps.setString(3, portfolio.getName());
+            ps.setString(4, portfolio.getDescription());
+            ps.setString(5, portfolio.getCurrency());
+            ps.setString(6, portfolio.getRiskLevel() != null ? portfolio.getRiskLevel().name() : null);
+            ps.setString(7, portfolio.getInvestmentGoal() != null ? portfolio.getInvestmentGoal().name() : null);
+            ps.setBigDecimal(8, portfolio.getTargetValue());
+            ps.setString(9, portfolio.getInvestmentHorizon() != null ? portfolio.getInvestmentHorizon().name() : null);
+            ps.setTimestamp(10, Timestamp.valueOf(portfolio.getCreatedAt()));
+            ps.setTimestamp(11, Timestamp.valueOf(portfolio.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
@@ -150,3 +182,4 @@ public class PortfolioRepository implements PortfolioRepositoryInterface {
         return value == null ? null : InvestmentHorizon.valueOf(value);
     }
 }
+
