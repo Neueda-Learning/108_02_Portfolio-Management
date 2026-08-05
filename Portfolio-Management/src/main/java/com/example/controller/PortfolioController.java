@@ -2,7 +2,7 @@ package com.example.controller;
 
 import com.example.dto.*;
 import com.example.service.PortfolioRecommendationService;
-import com.example.service.PortfolioService;
+import com.example.service.PortfolioServiceInterface;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -14,23 +14,24 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/portfolios")
 @Tag(name = "Portfolio Management", description = "APIs for managing portfolios")
+@CrossOrigin(origins = "*")
 public class PortfolioController {
     
-    private final PortfolioService portfolioService;
+    private final PortfolioServiceInterface portfolioService;
     private final PortfolioRecommendationService portfolioRecommendationService;
     
-    public PortfolioController(PortfolioService portfolioService,
+    public PortfolioController(PortfolioServiceInterface portfolioService,
                                PortfolioRecommendationService portfolioRecommendationService) {
         this.portfolioService = portfolioService;
         this.portfolioRecommendationService = portfolioRecommendationService;
     }
     
     @GetMapping
-    @Operation(summary = "Get all portfolios hi", description = "Retrieve a list of all portfolios")
-    public ResponseEntity<List<PortfolioDTO>> getAllPortfolios(@RequestParam(name = "userId", required = false) Long userId) {
-        List<PortfolioDTO> portfolios = (userId == null)
-                ? portfolioService.getAllPortfolios()
-                : portfolioService.getPortfoliosByUserId(userId);
+    @Operation(summary = "Get all portfolios", description = "Retrieve a list of all portfolios")
+    public ResponseEntity<List<PortfolioDTO>> getAllPortfolios(@RequestParam(required = false) Long userId) {
+        List<PortfolioDTO> portfolios = userId != null
+                ? portfolioService.getPortfoliosByUserId(userId)
+                : portfolioService.getAllPortfolios();
         return ResponseEntity.ok(portfolios);
     }
     
