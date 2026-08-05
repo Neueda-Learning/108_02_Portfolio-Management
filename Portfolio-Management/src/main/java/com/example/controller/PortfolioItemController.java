@@ -3,7 +3,7 @@ package com.example.controller;
 import com.example.dto.CreatePortfolioItemRequest;
 import com.example.dto.PortfolioItemDTO;
 import com.example.model.AssetType;
-import com.example.service.PortfolioItemService;
+import com.example.service.PortfolioItemServiceInterface;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,11 +15,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/portfolios/{portfolioId}/items")
 @Tag(name = "Portfolio Items", description = "APIs for managing portfolio items")
+@CrossOrigin(origins = "*")
 public class PortfolioItemController {
     
-    private final PortfolioItemService portfolioItemService;
+    private final PortfolioItemServiceInterface portfolioItemService;
     
-    public PortfolioItemController(PortfolioItemService portfolioItemService) {
+    public PortfolioItemController(PortfolioItemServiceInterface portfolioItemService) {
         this.portfolioItemService = portfolioItemService;
     }
     
@@ -47,7 +48,7 @@ public class PortfolioItemController {
         PortfolioItemDTO created = portfolioItemService.addItemToPortfolio(portfolioId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
-    
+
     @GetMapping("/{itemId}")
     @Operation(summary = "Get item by ID", description = "Retrieve a specific portfolio item")
     public ResponseEntity<PortfolioItemDTO> getItemById(@PathVariable Long itemId) {
