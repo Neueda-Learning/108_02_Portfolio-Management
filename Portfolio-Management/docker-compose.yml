@@ -1,0 +1,52 @@
+services:
+  mysql:
+	image: mysql:8.4
+	container_name: portfolio-mysql
+	environment:
+	  MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-n3u3da!}
+	  MYSQL_DATABASE: ${DB_NAME:-portfolio_db}
+	  MYSQL_USER: ${DB_USER:-root}
+	  MYSQL_PASSWORD: ${DB_PASSWORD:-n3u3da!}
+	ports:
+	  - "3306:3306"
+	volumes:
+	  - mysql_data:/var/lib/mysql
+	healthcheck:
+	  test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-n3u3da!}"]
+	  interval: 10s
+	  timeout: 5s
+	  retries: 12
+
+  backend:
+	build:
+	  context: .
+	  dockerfile: Dockerfile.backend
+	image: ${BACKEND_IMAGE:-portfolio-backend}:${IMAGE_TAG:-local}
+	container_name: portfolio-backend
+	environment:
+	  DB_HOST: mysql
+	  DB_PORT: 3306
+	  DB_NAME: ${DB_NAME:-portfolio_db}
+	  DB_USER: ${DB_USER:-root}
+	  DB_PASSWORD: ${DB_PASSWORD:-n3u3da!}
+	  SERVER_PORT: 8080
+	depends_on:
+	  mysql:
+		condition: service_healthy
+	ports:
+	  - "8080:8080"
+
+  frontend:
+	build:
+	  context: .
+	  dockerfile: frontend/Dockerfile
+	image: ${FRONTEND_IMAGE:-portfolio-frontend}:${IMAGE_TAG:-local}
+	container_name: portfolio-frontend
+	depends_on:
+	  - backend
+	ports:
+	  - "80:80"
+
+volumes:
+  mysql_data:
+
