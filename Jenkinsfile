@@ -60,7 +60,7 @@ pipeline {
     stage('Build Frontend Assets') {
       steps {
         dir(env.CHECKOUT_DIR) {
-          sh 'docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/frontend:/app" -w /app node:20-alpine sh -lc "npm ci --no-audit --no-fund && npm run build"'
+          sh 'docker build --target build -f frontend/Dockerfile -t frontend-build-check:${BUILD_NUMBER} .'
         }
       }
     }
