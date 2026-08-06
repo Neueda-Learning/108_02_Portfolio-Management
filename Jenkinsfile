@@ -71,8 +71,12 @@ pipeline {
           dir(env.CHECKOUT_DIR) {
             def shortCommit = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
             env.IMAGE_TAG = "${env.BUILD_NUMBER}-${shortCommit}"
-            env.BACKEND_IMAGE = "${params.REGISTRY}/${params.REGISTRY_NAMESPACE}/${env.BACKEND_REPO}"
-            env.FRONTEND_IMAGE = "${params.REGISTRY}/${params.REGISTRY_NAMESPACE}/${env.FRONTEND_REPO}"
+            def registryNamespace = (params.REGISTRY_NAMESPACE ?: '').toLowerCase()
+            if (!registryNamespace) {
+              error('REGISTRY_NAMESPACE cannot be empty.')
+            }
+            env.BACKEND_IMAGE = "${params.REGISTRY}/${registryNamespace}/${env.BACKEND_REPO}"
+            env.FRONTEND_IMAGE = "${params.REGISTRY}/${registryNamespace}/${env.FRONTEND_REPO}"
 
             sh "docker build -f Dockerfile.backend -t ${env.BACKEND_IMAGE}:${env.IMAGE_TAG} ."
             sh "docker build -f frontend/Dockerfile -t ${env.FRONTEND_IMAGE}:${env.IMAGE_TAG} ."
