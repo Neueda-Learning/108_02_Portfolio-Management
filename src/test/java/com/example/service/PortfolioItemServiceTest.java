@@ -17,6 +17,7 @@ import com.example.repository.PortfolioRepository;
 import com.example.repository.UserRepositoryInterface;
 import com.example.repository.WalletTransactionRepositoryInterface;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -139,7 +140,7 @@ class PortfolioItemServiceTest {
 
         assertEquals("USD", result.getSymbol());
         assertEquals(new BigDecimal("1.00"), result.getCurrentPrice());
-        assertTrue(ctx.marketDataService.requestedTickers.isEmpty());
+        assertEquals(List.of("usd"), ctx.marketDataService.requestedTickers);
     }
 
     @Test
@@ -236,7 +237,7 @@ class PortfolioItemServiceTest {
         BadRequestException ex = assertThrows(BadRequestException.class,
                 () -> ctx.service.buyAsset(202L, 33L, new BuyAssetRequest(AssetType.CRYPTO, "BTC-USD", "Bitcoin", new BigDecimal("0.50"))));
 
-        assertEquals("Buy is currently supported for STOCK/ETF only when priced from live market data", ex.getMessage());
+        assertEquals("Unable to fetch live market price for symbol: BTC-USD", ex.getMessage());
     }
 
     @Test
@@ -465,7 +466,7 @@ class PortfolioItemServiceTest {
         BadRequestException ex = assertThrows(BadRequestException.class,
                 () -> ctx.service.sellAsset(309L, 49L, new SellAssetRequest("crm", new BigDecimal("1.00"), null)));
 
-        assertEquals("Unable to fetch live market price for symbol: CRM", ex.getMessage());
+        assertEquals("Unable to resolve execution price for symbol: CRM", ex.getMessage());
     }
 
     @Test
@@ -474,7 +475,7 @@ class PortfolioItemServiceTest {
         Portfolio portfolio = portfolio(50L, 310L, "No NonMarket Price");
         ctx.portfolioRepository.portfoliosById.put(50L, portfolio);
         ctx.userRepository.walletBalances.put(310L, new BigDecimal("20.00"));
-        ctx.itemRepository.save(item(100L, portfolio, AssetType.CASH, "USD", "Cash", "10.00", "1.00", "1.00"));
+        ctx.itemRepository.save(item(100L, portfolio, AssetType.CASH, "USD", "Cash", "10.00", null, null));
 
         BadRequestException ex = assertThrows(BadRequestException.class,
                 () -> ctx.service.sellAsset(310L, 50L, new SellAssetRequest("usd", new BigDecimal("1.00"), null)));
@@ -527,7 +528,7 @@ class PortfolioItemServiceTest {
                 () -> assertEquals(AssetType.CASH, result.getAssetType()),
                 () -> assertEquals("USD", result.getSymbol()),
                 () -> assertEquals(new BigDecimal("1.00"), result.getCurrentPrice()),
-                () -> assertTrue(ctx.marketDataService.requestedTickers.isEmpty())
+                () -> assertEquals(List.of("usd"), ctx.marketDataService.requestedTickers)
         );
     }
 
@@ -600,7 +601,7 @@ class PortfolioItemServiceTest {
 
         assertEquals(new BigDecimal("1.00"), result.getCurrentPrice());
         assertEquals(saveCallsBefore, ctx.itemRepository.saveCalls);
-        assertTrue(ctx.marketDataService.requestedTickers.isEmpty());
+        assertEquals(List.of("USD"), ctx.marketDataService.requestedTickers);
     }
 
     @Test
@@ -761,6 +762,10 @@ class PortfolioItemServiceTest {
         private final Map<String, BigDecimal> prices = new HashMap<>();
         private final List<String> requestedTickers = new ArrayList<>();
 
+        FakeMarketDataService() {
+            super(null);
+        }
+
         @Override
         public BigDecimal getCurrentPrice(String ticker) {
             requestedTickers.add(ticker);
@@ -888,7 +893,25 @@ class PortfolioItemServiceTest {
             this.after = after;
         }
     }
+
+    @Test
+    void findPortfolioOrThrow_returnsPortfolioWhenPresent() {
+        TestContext ctx = new TestContext();
+        Portfolio portfolio = portfolio(66L, 406L, "Helper");
+        ctx.portfolioRepository.portfoliosById.put(66L, portfolio);
+
+        Portfolio result = ReflectionTestUtils.invokeMethod(ctx.service, "findPortfolioOrThrow", 66L);
+
+        assertEquals(66L, result.getId());
+    }
+
+    @Test
+    void findPortfolioOrThrow_throwsWhenMissing() {
+        TestContext ctx = new TestContext();
+
+        ResourceNotFoundException ex = assertThrows(ResourceNotFoundException.class,
+                () -> ReflectionTestUtils.invokeMethod(ctx.service, "findPortfolioOrThrow", 9999L));
+
+        assertEquals("Portfolio not found with id: 9999", ex.getMessage());
+    }
 }
-
-
-

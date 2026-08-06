@@ -484,7 +484,7 @@ class PortfolioServiceTest {
 		);
 		assertEquals(new BigDecimal("15.00"), stock.getCurrentPrice());
 		assertEquals(null, cash.getCurrentPrice());
-		assertEquals(List.of("AAPL"), marketDataService.requestedTickers);
+		assertEquals(List.of("AAPL", "USD"), marketDataService.requestedTickers);
 		assertEquals(1, portfolioRepository.findByIdCalls);
 	}
 
@@ -532,7 +532,7 @@ class PortfolioServiceTest {
 		assertEquals(new BigDecimal("21.00"), etf.getCurrentPrice());
 		assertEquals(AssetType.OTHER, other.getAssetType());
 		assertEquals(1, portfolioRepository.findByIdCalls);
-		assertEquals(List.of("QQQ"), marketDataService.requestedTickers);
+		assertEquals(List.of("QQQ", "DXY"), marketDataService.requestedTickers);
 		assertEquals(1, portfolioItemRepository.saveAllCalls);
 		assertEquals(portfolio.getItems(), portfolioItemRepository.lastSavedItems);
 	}
@@ -711,6 +711,10 @@ class PortfolioServiceTest {
 	private static class FakeMarketDataService extends MarketDataService {
 		private final Map<String, BigDecimal> prices = new HashMap<>();
 		private final List<String> requestedTickers = new ArrayList<>();
+
+		FakeMarketDataService() {
+			super(null);
+		}
 
 		@Override
 		public BigDecimal getCurrentPrice(String ticker) {
