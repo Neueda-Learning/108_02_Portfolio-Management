@@ -115,8 +115,8 @@ MYSQL_ROOT_PASSWORD=n3u3da!
 MYSQL_ROOT_HOST=%
 EOF
 '''
-          sh "${env.COMPOSE_CMD} -f docker-compose.prod.yml pull"
-          sh "${env.COMPOSE_CMD} -f docker-compose.prod.yml up -d"
+          sh '$COMPOSE_CMD -f docker-compose.prod.yml pull'
+          sh '$COMPOSE_CMD -f docker-compose.prod.yml up -d'
         }
       }
     }
@@ -131,7 +131,7 @@ EOF
   post {
     always {
       script {
-        sh 'docker logout || true'
+        sh 'docker logout ghcr.io || true'
       }
     }
   }
