@@ -24,9 +24,9 @@ pipeline {
 	  steps {
 		script {
 		  if (isUnix()) {
-			sh 'mvn -B -DskipTests clean package'
+			sh 'chmod +x mvnw && ./mvnw -B -Dmaven.test.skip=true clean package'
 		  } else {
-			bat 'mvn -B -DskipTests clean package'
+			bat 'mvnw.cmd -B -Dmaven.test.skip=true clean package'
 		  }
 		}
 	  }
