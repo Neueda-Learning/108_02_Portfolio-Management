@@ -114,6 +114,15 @@ if docker compose version >/dev/null 2>&1; then
 else
   COMPOSE_BIN="docker-compose"
 fi
+# Free the previous backend container name in case it is left behind from older runs.
+docker rm -f portfolio-backend >/dev/null 2>&1 || true
+
+# Show effective backend port mapping so pipeline logs clearly indicate the bound host port.
+$COMPOSE_BIN -f docker-compose.prod.yml config | sed -n '/backend:/,/frontend:/p'
+
+# Best-effort visibility into existing listeners for troubleshooting bind failures.
+ss -ltn 2>/dev/null | grep -E ':80 |:8080 |:8081 ' || true
+
 $COMPOSE_BIN -f docker-compose.prod.yml pull
 $COMPOSE_BIN -f docker-compose.prod.yml up -d --remove-orphans
 '''
