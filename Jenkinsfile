@@ -10,9 +10,9 @@ pipeline {
   parameters {
     string(name: 'GIT_URL', defaultValue: 'https://github.com/Neueda-Learning/108_02_Portfolio-Management.git', description: 'Repository URL')
     string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to build/deploy')
-    string(name: 'REGISTRY', defaultValue: 'docker.io', description: 'Container registry host')
-    string(name: 'REGISTRY_NAMESPACE', defaultValue: 'WealthWise', description: 'Registry namespace/user')
-    string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'admin', description: 'Jenkins credentials ID for Docker registry login')
+    string(name: 'REGISTRY', defaultValue: 'ghcr.io', description: 'Container registry host')
+    string(name: 'REGISTRY_NAMESPACE', defaultValue: 'sammed1174t', description: 'Registry namespace/user (GitHub org or username)')
+    string(name: 'GITHUB_CREDENTIALS_ID', defaultValue: 'github-creds', description: 'Jenkins credentials ID for GitHub Container Registry (PAT with write:packages)')
   }
 
   environment {
@@ -88,7 +88,7 @@ pipeline {
     stage('Push Docker Images') {
       steps {
         script {
-          withCredentials([usernamePassword(credentialsId: params.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+          withCredentials([usernamePassword(credentialsId: params.GITHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
             sh 'printf "%s" "$DOCKER_PASS" | docker login ' + params.REGISTRY + ' -u "$DOCKER_USER" --password-stdin'
             sh "docker push ${env.BACKEND_IMAGE}:${env.IMAGE_TAG}"
             sh "docker push ${env.FRONTEND_IMAGE}:${env.IMAGE_TAG}"
