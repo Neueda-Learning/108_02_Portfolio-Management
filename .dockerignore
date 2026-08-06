@@ -1,11 +1,14 @@
-target/
-frontend/node_modules/
-frontend/dist/
-.git/
+.git
 .gitignore
-.idea/
-.vscode/
+.idea
+.vscode
+node_modules
+frontend/node_modules
+frontend/dist
+target
+*.log
 .env
 .env.*
-!/.env.example
+Dockerfile.txt
+Jenkinsfile.txt
 
