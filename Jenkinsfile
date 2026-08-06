@@ -11,27 +11,17 @@ pipeline {
     environment {
         GIT_URL = 'https://github.com/Neueda-Learning/108_02_Portfolio-Management.git'
         BRANCH = 'main'
-        CHECKOUT_DIR = 'repo'
+        CHECKOUT_DIR = "repo-${BUILD_NUMBER}"
     }
 
     stages {
 
-        stage('Prepare Workspace') {
-            steps {
-                script {
-                    // Isolate each run from stale root-owned files in old workspaces.
-                    env.CHECKOUT_DIR = "repo-${env.BUILD_NUMBER}"
-                    echo "Using checkout directory: ${env.CHECKOUT_DIR}"
-                }
-            }
-        }
-
         stage('Checkout Source') {
             steps {
-                dir("${CHECKOUT_DIR}") {
-                    git branch: "${BRANCH}",
-                        url: "${GIT_URL}"
-                }
+                sh '''
+echo "Using checkout directory: ${CHECKOUT_DIR}"
+git clone --branch "${BRANCH}" --depth 1 "${GIT_URL}" "${CHECKOUT_DIR}"
+'''
             }
         }
 
@@ -55,9 +45,9 @@ fi
                 dir("${CHECKOUT_DIR}") {
                     sh '''
 if docker compose version >/dev/null 2>&1; then
-  docker compose down || true
+  docker compose -p portfolio down || true
 else
-  docker-compose down || true
+  docker-compose -p portfolio down || true
 fi
 '''
                 }
@@ -69,9 +59,9 @@ fi
                 dir("${CHECKOUT_DIR}") {
                     sh '''
 if docker compose version >/dev/null 2>&1; then
-  docker compose build --no-cache
+  docker compose -p portfolio build --no-cache
 else
-  docker-compose build --no-cache
+  docker-compose -p portfolio build --no-cache
 fi
 '''
                 }
@@ -83,9 +73,9 @@ fi
                 dir("${CHECKOUT_DIR}") {
                     sh '''
 if docker compose version >/dev/null 2>&1; then
-  docker compose up -d
+  docker compose -p portfolio up -d
 else
-  docker-compose up -d
+  docker-compose -p portfolio up -d
 fi
 '''
                 }
