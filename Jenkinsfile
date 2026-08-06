@@ -16,16 +16,28 @@ pipeline {
   }
 
   environment {
-    CHECKOUT_DIR = 'repo'
+    BASE_CHECKOUT_DIR = 'repo'
+    CHECKOUT_DIR = ''
     BACKEND_REPO = 'portfolio-backend'
     FRONTEND_REPO = 'portfolio-frontend'
     COMPOSE_CMD = ''
   }
 
   stages {
+    stage('Prepare Workspace') {
+      steps {
+        script {
+          // Use a unique checkout folder per build to avoid stale permission-locked files.
+          env.CHECKOUT_DIR = "${env.BASE_CHECKOUT_DIR}-${env.BUILD_NUMBER}"
+          echo "Using checkout directory: ${env.CHECKOUT_DIR}"
+        }
+      }
+    }
+
     stage('Checkout') {
       steps {
         dir(env.CHECKOUT_DIR) {
+          deleteDir()
           git branch: "${params.BRANCH}", url: "${params.GIT_URL}"
         }
       }
@@ -61,7 +73,7 @@ pipeline {
     stage('Build Frontend Assets') {
       steps {
         dir(env.CHECKOUT_DIR) {
-          sh 'docker run --rm -v "$PWD/frontend:/app" -w /app node:20-alpine sh -lc "npm ci --no-audit --no-fund && npm run build"'
+          sh 'docker run --rm -u "$(id -u):$(id -g)" -v "$PWD/frontend:/app" -w /app node:20-alpine sh -lc "npm ci --no-audit --no-fund && npm run build"'
         }
       }
     }
