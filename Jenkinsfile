@@ -16,7 +16,7 @@ pipeline {
   }
 
   environment {
-    CHECKOUT_DIR = 'repo'
+    CHECKOUT_DIR = '.'
     BACKEND_REPO = 'portfolio-backend'
     FRONTEND_REPO = 'portfolio-frontend'
     COMPOSE_CMD = ''
@@ -24,21 +24,9 @@ pipeline {
 
   stages {
 
-    stage('Prepare Workspace') {
+    stage('Workspace') {
       steps {
-        script {
-          def buildId = (env.BUILD_NUMBER ?: 'manual').toString()
-          env.CHECKOUT_DIR = "repo-${buildId}"
-          echo "Using checkout directory: ${env.CHECKOUT_DIR}"
-        }
-      }
-    }
-
-    stage('Checkout') {
-      steps {
-        dir(env.CHECKOUT_DIR) {
-          git branch: "${params.BRANCH}", url: "${params.GIT_URL}"
-        }
+        echo 'Using existing workspace content; no clone stage will run.'
       }
     }
 
