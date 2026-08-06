@@ -13,6 +13,7 @@ pipeline {
     string(name: 'REGISTRY', defaultValue: 'ghcr.io', description: 'Container registry host')
     string(name: 'REGISTRY_NAMESPACE', defaultValue: 'sammed1174t', description: 'Registry namespace/user (GitHub org or username)')
     string(name: 'GITHUB_CREDENTIALS_ID', defaultValue: 'github-creds', description: 'Jenkins credentials ID for GitHub Container Registry (PAT with write:packages)')
+    string(name: 'BACKEND_HOST_PORT', defaultValue: '8081', description: 'Host port mapped to backend container port 8080')
   }
 
   environment {
@@ -106,6 +107,7 @@ DB_USER=root
 DB_PASSWORD=n3u3da!
 MYSQL_ROOT_PASSWORD=n3u3da!
 MYSQL_ROOT_HOST=%
+BACKEND_HOST_PORT=${BACKEND_HOST_PORT}
 EOF
 if docker compose version >/dev/null 2>&1; then
   COMPOSE_BIN="docker compose"
@@ -113,7 +115,7 @@ else
   COMPOSE_BIN="docker-compose"
 fi
 $COMPOSE_BIN -f docker-compose.prod.yml pull
-$COMPOSE_BIN -f docker-compose.prod.yml up -d
+$COMPOSE_BIN -f docker-compose.prod.yml up -d --remove-orphans
 '''
         }
       }
