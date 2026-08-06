@@ -49,6 +49,8 @@ if docker compose version >/dev/null 2>&1; then
 else
   docker-compose -p portfolio down || true
 fi
+# Remove fixed-name containers even if they were created outside this compose project.
+docker rm -f portfolio-backend portfolio-frontend portfolio-mysql >/dev/null 2>&1 || true
 '''
                 }
             }
