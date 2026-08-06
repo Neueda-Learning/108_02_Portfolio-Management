@@ -2,6 +2,7 @@ services:
   mysql:
     image: mysql:8.4
     container_name: portfolio-mysql
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-n3u3da!}
       MYSQL_ROOT_HOST: ${MYSQL_ROOT_HOST:-%}
@@ -20,8 +21,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    image: ${BACKEND_IMAGE:-portfolio-backend}:${IMAGE_TAG:-local}
+    image: ${BACKEND_IMAGE:-docker.io/admin/portfolio-backend}:${IMAGE_TAG:-latest}
     container_name: portfolio-backend
+    restart: unless-stopped
     environment:
       DB_HOST: mysql
       DB_PORT: 3306
@@ -39,8 +41,9 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
-    image: ${FRONTEND_IMAGE:-portfolio-frontend}:${IMAGE_TAG:-local}
+    image: ${FRONTEND_IMAGE:-docker.io/admin/portfolio-frontend}:${IMAGE_TAG:-latest}
     container_name: portfolio-frontend
+    restart: unless-stopped
     depends_on:
       - backend
     ports:
@@ -48,3 +51,4 @@ services:
 
 volumes:
   mysql_data:
+

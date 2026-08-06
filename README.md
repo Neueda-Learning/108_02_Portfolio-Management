@@ -15,9 +15,9 @@ A full-stack portfolio management app built with Spring Boot (backend) and React
 - **Backend:** Java 17, Spring Boot, Maven, MySQL
 - **Frontend:** React, Vite, Tailwind CSS
 
-## Docker / Jenkins Deployment
+## Docker / Jenkins Deployment (Linux)
 
-The repository includes the files needed for Jenkins + Docker deployment:
+This repository includes production deployment files for backend, frontend, and MySQL using Docker and Jenkins:
 
 - `Jenkinsfile`
 - `Dockerfile.backend`
@@ -45,6 +45,9 @@ Database defaults are configured to use:
 - Maven 3.8+
 - Node.js 18+
 - MySQL 8+
+- Docker Engine
+- Docker Compose (`docker compose` or `docker-compose`)
+- Jenkins (running on Linux server with Docker access)
 
 ## Configuration
 
@@ -98,14 +101,41 @@ npm run build
 
 ## Docker Compose
 
-Local/dev:
+Local/dev (build locally):
 
 ```powershell
 Set-Location "C:\Users\Administrator\108_02_Portfolio-Management"
 docker compose up --build
 ```
 
-Production/Jenkins uses `docker-compose.prod.yml` with the same root MySQL credentials from `.env.example`.
+Production stack (pull prebuilt images):
+
+```bash
+cp .env.example .env
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+## Jenkins CI/CD Pipeline
+
+`Jenkinsfile` performs:
+
+1. Checkout
+2. Compose CLI detection (`docker compose` or `docker-compose`)
+3. Backend build (`mvnw`)
+4. Frontend build (Node container)
+5. Docker image build + push
+6. Deploy on `main` using `docker-compose.prod.yml`
+
+Required Jenkins credential:
+
+- `dockerhub-creds` (type: Username with password)
+
+Important Jenkins parameters (defaulted in `Jenkinsfile`):
+
+- `REGISTRY` (default `docker.io`)
+- `REGISTRY_NAMESPACE` (default `admin`)
+- `DOCKERHUB_CREDENTIALS_ID` (default `dockerhub-creds`)
 
 ## API Docs
 

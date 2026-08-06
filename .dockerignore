@@ -1,12 +1,11 @@
 target/
 frontend/node_modules/
 frontend/dist/
-frontend/.vite/
 .git/
+.gitignore
 .idea/
 .vscode/
-.DS_Store
-Thumbs.db
-*.log
 .env
+.env.*
+!/.env.example
 
