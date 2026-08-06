@@ -19,7 +19,6 @@ pipeline {
     CHECKOUT_DIR = '.'
     BACKEND_REPO = 'portfolio-backend'
     FRONTEND_REPO = 'portfolio-frontend'
-    COMPOSE_CMD = ''
   }
 
   stages {
@@ -35,16 +34,10 @@ pipeline {
         script {
           def v2Status = sh(script: 'docker compose version >/dev/null 2>&1', returnStatus: true)
           def v1Status = sh(script: 'docker-compose version >/dev/null 2>&1', returnStatus: true)
-
-          if (v2Status == 0) {
-            env.COMPOSE_CMD = 'docker compose'
-          } else if (v1Status == 0) {
-            env.COMPOSE_CMD = 'docker-compose'
-          } else {
-            error("Neither docker compose nor docker-compose is available on this Jenkins agent. v2Status=${v2Status}, v1Status=${v1Status}")
+          if (v2Status != 0 && v1Status != 0) {
+            error("Neither docker compose nor docker-compose is available on this Jenkins agent.")
           }
-
-          echo "Using Compose command: ${env.COMPOSE_CMD}"
+          echo "Compose CLI detected (v2=${v2Status == 0})"
         }
       }
     }
@@ -114,9 +107,14 @@ DB_PASSWORD=n3u3da!
 MYSQL_ROOT_PASSWORD=n3u3da!
 MYSQL_ROOT_HOST=%
 EOF
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE_BIN="docker compose"
+else
+  COMPOSE_BIN="docker-compose"
+fi
+$COMPOSE_BIN -f docker-compose.prod.yml pull
+$COMPOSE_BIN -f docker-compose.prod.yml up -d
 '''
-          sh '$COMPOSE_CMD -f docker-compose.prod.yml pull'
-          sh '$COMPOSE_CMD -f docker-compose.prod.yml up -d'
         }
       }
     }
