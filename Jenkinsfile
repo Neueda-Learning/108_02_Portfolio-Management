@@ -75,7 +75,7 @@ pipeline {
 
 	stage('Push images') {
 	  steps {
-		withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+		withCredentials([usernamePassword(credentialsId: 'admin', usernameVariable: 'admin', passwordVariable: 'n3u3da!')]) {
 		  script {
 			dir(env.CHECKOUT_DIR) {
 			  if (isUnix()) {
