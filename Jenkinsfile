@@ -16,23 +16,13 @@ pipeline {
   }
 
   environment {
-    BASE_CHECKOUT_DIR = 'repo'
-    CHECKOUT_DIR = ''
+    CHECKOUT_DIR = 'repo'
     BACKEND_REPO = 'portfolio-backend'
     FRONTEND_REPO = 'portfolio-frontend'
     COMPOSE_CMD = ''
   }
 
   stages {
-    stage('Prepare Workspace') {
-      steps {
-        script {
-          // Use a unique checkout folder per build to avoid stale permission-locked files.
-          env.CHECKOUT_DIR = "${env.BASE_CHECKOUT_DIR}-${env.BUILD_NUMBER}"
-          echo "Using checkout directory: ${env.CHECKOUT_DIR}"
-        }
-      }
-    }
 
     stage('Checkout') {
       steps {
