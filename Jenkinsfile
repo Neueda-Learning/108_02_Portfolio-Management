@@ -12,6 +12,7 @@ pipeline {
     GIT_URL = 'https://github.com/Neueda-Learning/108_02_Portfolio-Management.git'
     BRANCH = 'main'
     CHECKOUT_DIR = 'repo'
+    COMPOSE_CMD = ''
   }
 
   stages {
@@ -23,10 +24,35 @@ pipeline {
       }
     }
 
+    stage('Detect Compose CLI') {
+      steps {
+        script {
+          dir(env.CHECKOUT_DIR) {
+            env.COMPOSE_CMD = sh(
+              script: '''
+if docker compose version >/dev/null 2>&1; then
+  echo "docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  echo "docker-compose"
+fi
+''',
+              returnStdout: true
+            ).trim()
+
+            if (!env.COMPOSE_CMD) {
+              error('Neither `docker compose` nor `docker-compose` is available on this Jenkins agent.')
+            }
+
+            echo "Using Compose command: ${env.COMPOSE_CMD}"
+          }
+        }
+      }
+    }
+
     stage('Stop Existing Containers') {
       steps {
         dir(env.CHECKOUT_DIR) {
-          sh 'docker compose down || true'
+          sh "${env.COMPOSE_CMD} down || true"
         }
       }
     }
@@ -34,7 +60,7 @@ pipeline {
     stage('Build Docker Images') {
       steps {
         dir(env.CHECKOUT_DIR) {
-          sh 'docker compose build --no-cache'
+          sh "${env.COMPOSE_CMD} build --no-cache"
         }
       }
     }
@@ -42,7 +68,7 @@ pipeline {
     stage('Deploy') {
       steps {
         dir(env.CHECKOUT_DIR) {
-          sh 'docker compose up -d'
+          sh "${env.COMPOSE_CMD} up -d"
         }
       }
     }
