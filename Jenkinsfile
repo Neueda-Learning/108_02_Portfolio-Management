@@ -28,19 +28,15 @@ pipeline {
       steps {
         script {
           dir(env.CHECKOUT_DIR) {
-            env.COMPOSE_CMD = sh(
-              script: '''
-if docker compose version >/dev/null 2>&1; then
-  echo "docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-  echo "docker-compose"
-fi
-''',
-              returnStdout: true
-            ).trim()
+            def v2Status = sh(script: 'docker compose version >/dev/null 2>&1', returnStatus: true)
+            def v1Status = sh(script: 'docker-compose version >/dev/null 2>&1', returnStatus: true)
 
-            if (!env.COMPOSE_CMD) {
-              error('Neither `docker compose` nor `docker-compose` is available on this Jenkins agent.')
+            if (v2Status == 0) {
+              env.COMPOSE_CMD = 'docker compose'
+            } else if (v1Status == 0) {
+              env.COMPOSE_CMD = 'docker-compose'
+            } else {
+              error("Neither `docker compose` nor `docker-compose` is available on this Jenkins agent. v2Status=${v2Status}, v1Status=${v1Status}")
             }
 
             echo "Using Compose command: ${env.COMPOSE_CMD}"
