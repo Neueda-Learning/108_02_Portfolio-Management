@@ -12,7 +12,7 @@ pipeline {
     string(name: 'BRANCH', defaultValue: 'main', description: 'Git branch to build/deploy')
     string(name: 'REGISTRY', defaultValue: 'docker.io', description: 'Container registry host')
     string(name: 'REGISTRY_NAMESPACE', defaultValue: 'admin', description: 'Registry namespace/user')
-    string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'dockerhub-creds', description: 'Jenkins credentials ID for Docker registry login')
+//     string(name: 'DOCKERHUB_CREDENTIALS_ID', defaultValue: 'dockerhub-creds', description: 'Jenkins credentials ID for Docker registry login')
   }
 
   environment {
