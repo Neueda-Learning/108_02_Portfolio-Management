@@ -36,9 +36,9 @@ pipeline {
 	  steps {
 		script {
 		  if (isUnix()) {
-			sh 'cd frontend && npm install --no-audit --no-fund && npm run build'
+			sh 'docker run --rm -v "$PWD/frontend:/app" -w /app node:20-alpine sh -lc "npm ci --no-audit --no-fund && npm run build"'
 		  } else {
-			bat 'cd frontend && npm install --no-audit --no-fund && npm run build'
+			bat 'docker run --rm -v "%cd%\\frontend:/app" -w /app node:20-alpine sh -lc "npm ci --no-audit --no-fund && npm run build"'
 		  }
 		}
 	  }
