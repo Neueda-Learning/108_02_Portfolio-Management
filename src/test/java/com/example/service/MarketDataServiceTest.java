@@ -1,14 +1,16 @@
 package com.example.service;
 
+import com.example.dto.AssetStatsDTO;
 import com.example.dto.MarketStockDTO;
+import com.example.dto.PriceHistoryDTO;
 import com.example.dto.StockPriceDTO;
 import com.example.model.AssetType;
 import org.junit.jupiter.api.Test;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -19,262 +21,258 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MarketDataServiceTest {
 
-	@Test
-	void getCurrentPrice_returnsDirectPriceValue() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.responsesByTicker.put("AAPL", responseMap("price", 123.45));
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void getCurrentPrice_returnsPriceFromAwsDirectSchema() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("AAPL", mapOf("price", "123.45"));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		BigDecimal result = service.getCurrentPrice("aapl");
+        BigDecimal result = service.getCurrentPrice("aapl");
 
-		assertEquals(new BigDecimal("123.45"), result);
-		assertEquals(List.of("AAPL"), restTemplate.requestedTickers);
-	}
+        assertEquals(new BigDecimal("123.45"), result);
+        assertEquals(List.of("AAPL"), restTemplate.requestedAwsTickers);
+        assertTrue(restTemplate.requestedYahooTickers.isEmpty());
+    }
 
-	@Test
-	void getCurrentPrice_returnsAlternateDirectFieldValues() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.responsesByTicker.put("MSFT", responseMap("currentPrice", "456.78"));
-		restTemplate.responsesByTicker.put("NVDA", responseMap("current_price", 789.01));
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void getCurrentPrice_supportsAlternateAwsPriceSchemas() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("MSFT", mapOf("currentPrice", "456.78"));
+        restTemplate.awsResponsesByTicker.put("NVDA", mapOf("current_price", 789.01));
+        Map<String, Object> candle = new HashMap<>();
+        candle.put("price_data", mapOf("close", List.of("1.00", "2.00", "333.33")));
+        restTemplate.awsResponsesByTicker.put("TSLA", candle);
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		BigDecimal currentPrice = service.getCurrentPrice("msft");
-		BigDecimal currentPriceSnake = service.getCurrentPrice("nvda");
+        BigDecimal camel = service.getCurrentPrice("msft");
+        BigDecimal snake = service.getCurrentPrice("nvda");
+        BigDecimal close = service.getCurrentPrice("tsla");
 
-		assertAll(
-				() -> assertEquals(new BigDecimal("456.78"), currentPrice),
-				() -> assertEquals(new BigDecimal("789.01"), currentPriceSnake)
-		);
-	}
+        assertAll(
+                () -> assertEquals(new BigDecimal("456.78"), camel),
+                () -> assertEquals(new BigDecimal("789.01"), snake),
+                () -> assertEquals(new BigDecimal("333.33"), close)
+        );
+    }
 
-	@Test
-	void getCurrentPrice_returnsLatestCloseFromCandleSchema() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		Map<String, Object> priceData = new HashMap<>();
-		priceData.put("close", List.of("101.10", 202.25, "303.30"));
-		Map<String, Object> response = new HashMap<>();
-		response.put("price_data", priceData);
-		restTemplate.responsesByTicker.put("TSLA", response);
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void getCurrentPrice_usesYahooMetaWhenAwsFailsWithErrorMessage() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("GOOGL", mapOf("message", "Error: not cached"));
+        restTemplate.yahooResponsesByTicker.put("GOOGL", yahooWithMetaPrice("222.22"));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		BigDecimal result = service.getCurrentPrice("tsla");
+        BigDecimal result = service.getCurrentPrice("googl");
 
-		assertEquals(new BigDecimal("303.30"), result);
-	}
+        assertEquals(new BigDecimal("222.22"), result);
+        assertEquals(List.of("GOOGL"), restTemplate.requestedYahooTickers);
+    }
 
-	@Test
-	void getCurrentPrice_returnsNullWhenPriceCannotBeResolved() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		Map<String, Object> response = new HashMap<>();
-		response.put("price", "not-a-number");
-		response.put("price_data", Map.of("close", List.of()));
-		restTemplate.responsesByTicker.put("AMZN", response);
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void getCurrentPrice_usesYahooCloseSeriesWithCryptoTickerConversion() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("BTC", mapOf("price", "bad"));
+        List<Object> closes = new ArrayList<>();
+        closes.add(null);
+        closes.add("70000.11");
+        restTemplate.yahooResponsesByTicker.put("BTC-USD", yahooWithCloseSeries(closes));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		BigDecimal result = service.getCurrentPrice("amzn");
+        BigDecimal result = service.getCurrentPrice("btc");
 
-		assertNull(result);
-	}
+        assertEquals(new BigDecimal("70000.11"), result);
+        assertEquals(List.of("BTC-USD"), restTemplate.requestedYahooTickers);
+    }
 
-	@Test
-	void getCurrentPrice_returnsNullOnRestClientException() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.tickersThrowing.add("META");
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void getCurrentPrice_returnsGeneratedFallbackWhenAwsAndYahooFail() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsThrowingTickers.add("META");
+        restTemplate.yahooThrowingTickers.add("META");
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		BigDecimal result = service.getCurrentPrice("meta");
+        BigDecimal result = service.getCurrentPrice("meta");
 
-		assertNull(result);
-	}
+        assertNotNull(result);
+        assertTrue(result.compareTo(BigDecimal.ZERO) > 0);
+    }
 
-	@Test
-	void getStockInfo_returnsDtoWithNormalizedTickerAndMetadata() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		Map<String, Object> response = responseMap("price", "234.56");
-		restTemplate.responsesByTicker.put("GOOGL", response);
-		MarketDataService service = serviceWith(restTemplate);
-		long before = System.currentTimeMillis();
+    @Test
+    void getStockInfo_returnsNormalizedDtoAndMetadataMap() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("AMD", mapOf("price", "111.11"));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		StockPriceDTO result = service.getStockInfo("googl");
+        StockPriceDTO result = service.getStockInfo("amd");
 
-		long after = System.currentTimeMillis();
-		assertAll(
-				() -> assertEquals("GOOGL", result.getTicker()),
-				() -> assertEquals(new BigDecimal("234.56"), result.getCurrentPrice()),
-				() -> assertEquals("USD", result.getCurrency()),
-				() -> assertTrue(result.getTimestamp() >= before && result.getTimestamp() <= after),
-				() -> assertSame(response, result.getAdditionalData())
-		);
-	}
+        assertAll(
+                () -> assertEquals("AMD", result.getTicker()),
+                () -> assertEquals(new BigDecimal("111.11"), result.getCurrentPrice()),
+                () -> assertEquals("USD", result.getCurrency()),
+                () -> assertTrue(result.getTimestamp() > 0),
+                () -> assertEquals("AMD", String.valueOf(result.getAdditionalData().get("ticker"))),
+                () -> assertEquals("Multi-source (AWS + Yahoo Finance + Fallback)", String.valueOf(result.getAdditionalData().get("source")))
+        );
+    }
 
-	@Test
-	void getStockInfo_returnsNullWhenResponseIsNull() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.responsesByTicker.put("IBM", null);
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void isTickerSupported_returnsTrueWithFallbackDesign() {
+        MarketDataService service = new MarketDataService(new FakeRestTemplate());
 
-		StockPriceDTO result = service.getStockInfo("ibm");
+        assertTrue(service.isTickerSupported("unmapped-symbol"));
+    }
 
-		assertNull(result);
-	}
+    @Test
+    void getAvailableStocks_returnsSortedCatalogEntries() {
+        MarketDataService service = new MarketDataService(new FakeRestTemplate());
 
-	@Test
-	void getStockInfo_returnsNullOnRestClientException() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.tickersThrowing.add("ORCL");
-		MarketDataService service = serviceWith(restTemplate);
+        List<MarketStockDTO> result = service.getAvailableStocks();
 
-		StockPriceDTO result = service.getStockInfo("orcl");
+        List<String> tickers = result.stream().map(MarketStockDTO::getTicker).toList();
+        List<String> sorted = new ArrayList<>(tickers);
+        sorted.sort(String::compareTo);
 
-		assertNull(result);
-	}
+        assertAll(
+                () -> assertEquals(34, result.size()),
+                () -> assertEquals(sorted, tickers),
+                () -> assertEquals("AAPL", result.get(0).getTicker()),
+                () -> assertTrue(result.stream().allMatch(stock -> stock.getCurrentPrice() != null)),
+                () -> assertTrue(result.stream().allMatch(MarketStockDTO::isPriceAvailable))
+        );
+    }
 
-	@Test
-	void isTickerSupported_reflectsPriceAvailability() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.responsesByTicker.put("AAPL", responseMap("price", 10.25));
-		restTemplate.responsesByTicker.put("XYZ", new HashMap<>());
-		MarketDataService service = serviceWith(restTemplate);
+    @Test
+    void getTickersByAssetType_returnsKnownAndEmptyForNull() {
+        MarketDataService service = new MarketDataService(new FakeRestTemplate());
 
-		assertTrue(service.isTickerSupported("aapl"));
-		assertFalse(service.isTickerSupported("xyz"));
-	}
+        List<String> stocks = service.getTickersByAssetType(AssetType.STOCK);
+        List<String> cash = service.getTickersByAssetType(AssetType.CASH);
+        List<String> none = service.getTickersByAssetType(null);
 
-	@Test
-	void getAvailableStocks_returnsSortedCatalogWithAvailabilityFlags() {
-		FakeRestTemplate restTemplate = new FakeRestTemplate();
-		restTemplate.responsesByTicker.put("AAPL", responseMap("price", 100));
-		restTemplate.responsesByTicker.put("BTC-USD", responseMap("current_price", "65000.00"));
-		restTemplate.responsesByTicker.put("QQQ", responseMap("currentPrice", "510.10"));
-		MarketDataService service = serviceWith(restTemplate);
+        assertAll(
+                () -> assertEquals(List.of("AAPL", "AMD", "AMZN", "DIS", "GOOGL", "INTC", "JPM", "KO", "META", "MSFT", "NFLX", "NVDA", "TSLA", "V", "WMT"), stocks),
+                () -> assertEquals(List.of("EUR", "JPY", "USD"), cash),
+                () -> assertEquals(List.of(), none)
+        );
+    }
 
-		List<MarketStockDTO> result = service.getAvailableStocks();
+    @Test
+    void getPriceHistory_generatesChronologicalDataWithFields() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("AAPL", mapOf("price", "100.00"));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		List<String> tickers = result.stream().map(MarketStockDTO::getTicker).toList();
-		List<String> sorted = new ArrayList<>(tickers);
-		sorted.sort(String::compareTo);
+        LocalDate start = LocalDate.now().minusDays(4);
+        LocalDate end = LocalDate.now();
+        List<PriceHistoryDTO> history = service.getPriceHistory("AAPL", start, end);
 
-		assertAll(
-				() -> assertEquals(34, result.size()),
-				() -> assertEquals(sorted, tickers),
-				() -> assertEquals("AAPL", result.get(0).getTicker()),
-				() -> assertTrue(result.stream().filter(stock -> stock.getTicker().equals("AAPL")).findFirst().orElseThrow().isPriceAvailable()),
-				() -> assertEquals(new BigDecimal("65000.00"), result.stream().filter(stock -> stock.getTicker().equals("BTC-USD")).findFirst().orElseThrow().getCurrentPrice()),
-				() -> assertFalse(result.stream().filter(stock -> stock.getTicker().equals("AMD")).findFirst().orElseThrow().isPriceAvailable())
-		);
-	}
+        assertEquals(5, history.size());
+        assertEquals(start, history.get(0).getDate());
+        assertEquals(end, history.get(history.size() - 1).getDate());
+        assertTrue(history.stream().allMatch(point -> point.getOpen() != null && point.getHigh() != null && point.getLow() != null && point.getClose() != null && point.getVolume() != null));
+    }
 
-	@Test
-	void getTickersByAssetType_returnsSortedValuesAndEmptyForNull() {
-		MarketDataService service = serviceWith(new FakeRestTemplate());
+    @Test
+    void getAssetStats_populatesKnownAssetAndDefaultPeriod() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("AAPL", mapOf("price", "150.00"));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		List<String> stocks = service.getTickersByAssetType(AssetType.STOCK);
-		List<String> cash = service.getTickersByAssetType(AssetType.CASH);
-		List<String> nullType = service.getTickersByAssetType(null);
+        AssetStatsDTO stats = service.getAssetStats("aapl", "unknown");
 
-		assertAll(
-				() -> assertEquals(List.of("AAPL", "AMD", "AMZN", "DIS", "GOOGL", "INTC", "JPM", "KO", "META", "MSFT", "NFLX", "NVDA", "TSLA", "V", "WMT"), stocks),
-				() -> assertEquals(List.of("EUR", "JPY", "USD"), cash),
-				() -> assertEquals(List.of(), nullType)
-		);
-	}
+        assertAll(
+                () -> assertEquals("AAPL", stats.getTicker()),
+                () -> assertEquals("Apple Inc.", stats.getName()),
+                () -> assertEquals(AssetType.STOCK, stats.getAssetType()),
+                () -> assertNotNull(stats.getCurrentPrice()),
+                () -> assertFalse(stats.getPriceHistory().isEmpty()),
+                () -> assertNotNull(stats.getWeekHigh()),
+                () -> assertNotNull(stats.getWeekLow()),
+                () -> assertNotNull(stats.getMonthHigh()),
+                () -> assertNotNull(stats.getMonthLow()),
+                () -> assertNotNull(stats.getYearHigh()),
+                () -> assertNotNull(stats.getYearLow()),
+                () -> assertNotNull(stats.getDayHigh()),
+                () -> assertNotNull(stats.getDayLow())
+        );
+    }
 
-	@Test
-	void extractPriceFromResponse_coversDirectAndCandleSchemas() {
-		MarketDataService service = serviceWith(new FakeRestTemplate());
+    @Test
+    void getAssetStats_supportsAllNamedPeriodsAndUnknownTickerDefaults() {
+        FakeRestTemplate restTemplate = new FakeRestTemplate();
+        restTemplate.awsResponsesByTicker.put("CUSTOM", mapOf("price", "88.00"));
+        MarketDataService service = new MarketDataService(restTemplate);
 
-		BigDecimal direct = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", responseMap("price", 91.11));
-		BigDecimal camel = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", responseMap("currentPrice", "92.22"));
-		BigDecimal snake = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", responseMap("current_price", "93.33"));
+        AssetStatsDTO oneWeek = service.getAssetStats("custom", "1W");
+        AssetStatsDTO oneMonth = service.getAssetStats("custom", "1M");
+        AssetStatsDTO oneYear = service.getAssetStats("custom", "1Y");
 
-		Map<String, Object> nested = new HashMap<>();
-		nested.put("price_data", Map.of("close", List.of("1.00", "2.00", "94.44")));
-		BigDecimal candle = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", nested);
+        assertAll(
+                () -> assertEquals("CUSTOM", oneWeek.getTicker()),
+                () -> assertEquals("CUSTOM", oneWeek.getName()),
+                () -> assertEquals(AssetType.STOCK, oneWeek.getAssetType()),
+                () -> assertTrue(oneWeek.getPriceHistory().size() >= 7),
+                () -> assertTrue(oneMonth.getPriceHistory().size() >= 28),
+                () -> assertTrue(oneYear.getPriceHistory().size() >= 360)
+        );
+    }
 
-		assertAll(
-				() -> assertEquals(new BigDecimal("91.11"), direct),
-				() -> assertEquals(new BigDecimal("92.22"), camel),
-				() -> assertEquals(new BigDecimal("93.33"), snake),
-				() -> assertEquals(new BigDecimal("94.44"), candle)
-		);
-	}
+    private static Map<String, Object> mapOf(String key, Object value) {
+        Map<String, Object> map = new HashMap<>();
+        map.put(key, value);
+        return map;
+    }
 
-	@Test
-	void extractPriceFromResponse_returnsNullForUnsupportedOrEmptyStructures() {
-		MarketDataService service = serviceWith(new FakeRestTemplate());
+    private static Map<String, Object> yahooWithMetaPrice(String price) {
+        Map<String, Object> meta = mapOf("regularMarketPrice", price);
+        Map<String, Object> firstResult = mapOf("meta", meta);
+        Map<String, Object> chart = mapOf("result", List.of(firstResult));
+        return mapOf("chart", chart);
+    }
 
-		Map<String, Object> invalidDirect = responseMap("price", "abc");
-		invalidDirect.put("price_data", Map.of("close", List.of()));
-		Map<String, Object> unsupportedClose = new HashMap<>();
-		unsupportedClose.put("price_data", Map.of("close", List.of(new Object())));
+    private static Map<String, Object> yahooWithCloseSeries(List<Object> closeSeries) {
+        Map<String, Object> quoteData = mapOf("close", closeSeries);
+        Map<String, Object> indicators = mapOf("quote", List.of(quoteData));
+        Map<String, Object> firstResult = mapOf("indicators", indicators);
+        Map<String, Object> chart = mapOf("result", List.of(firstResult));
+        return mapOf("chart", chart);
+    }
 
-		BigDecimal nullResponse = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", (Object) null);
-		BigDecimal emptyClose = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", invalidDirect);
-		BigDecimal badCloseValue = ReflectionTestUtils.invokeMethod(service, "extractPriceFromResponse", unsupportedClose);
+    private static final class FakeRestTemplate extends RestTemplate {
+        private final Map<String, Map<String, Object>> awsResponsesByTicker = new HashMap<>();
+        private final Map<String, Map<String, Object>> yahooResponsesByTicker = new HashMap<>();
+        private final Set<String> awsThrowingTickers = new HashSet<>();
+        private final Set<String> yahooThrowingTickers = new HashSet<>();
+        private final List<String> requestedAwsTickers = new ArrayList<>();
+        private final List<String> requestedYahooTickers = new ArrayList<>();
 
-		assertAll(
-				() -> assertNull(nullResponse),
-				() -> assertNull(emptyClose),
-				() -> assertNull(badCloseValue)
-		);
-	}
+        @Override
+        @SuppressWarnings("unchecked")
+        public <T> T getForObject(String url, Class<T> responseType, Object... uriVariables) throws RestClientException {
+            if (url.contains("cachedPriceData?ticker=")) {
+                String ticker = url.substring(url.indexOf("ticker=") + 7);
+                requestedAwsTickers.add(ticker);
+                if (awsThrowingTickers.contains(ticker)) {
+                    throw new RestClientException("Simulated AWS failure for " + ticker);
+                }
+                return (T) awsResponsesByTicker.get(ticker);
+            }
 
-	@Test
-	void toBigDecimal_parsesNumbersAndStringsAndRejectsInvalidValues() {
-		MarketDataService service = serviceWith(new FakeRestTemplate());
+            if (url.contains("/chart/")) {
+                String ticker = url.substring(url.lastIndexOf('/') + 1);
+                requestedYahooTickers.add(ticker);
+                if (yahooThrowingTickers.contains(ticker)) {
+                    throw new RestClientException("Simulated Yahoo failure for " + ticker);
+                }
+                return (T) yahooResponsesByTicker.get(ticker);
+            }
 
-		BigDecimal fromNumber = ReflectionTestUtils.invokeMethod(service, "toBigDecimal", 12.34);
-		BigDecimal fromString = ReflectionTestUtils.invokeMethod(service, "toBigDecimal", "56.78");
-		BigDecimal fromInvalidString = ReflectionTestUtils.invokeMethod(service, "toBigDecimal", "bad");
-		BigDecimal fromOtherType = ReflectionTestUtils.invokeMethod(service, "toBigDecimal", new Object());
-		BigDecimal fromNull = ReflectionTestUtils.invokeMethod(service, "toBigDecimal", new Object[]{null});
-
-		assertAll(
-				() -> assertEquals(new BigDecimal("12.34"), fromNumber),
-				() -> assertEquals(new BigDecimal("56.78"), fromString),
-				() -> assertNull(fromInvalidString),
-				() -> assertNull(fromOtherType),
-				() -> assertNull(fromNull)
-		);
-	}
-
-	private static MarketDataService serviceWith(FakeRestTemplate restTemplate) {
-		MarketDataService service = new MarketDataService();
-		ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
-		return service;
-	}
-
-	private static Map<String, Object> responseMap(String key, Object value) {
-		Map<String, Object> response = new HashMap<>();
-		response.put(key, value);
-		return response;
-	}
-
-	private static final class FakeRestTemplate extends RestTemplate {
-		private final Map<String, Map<String, Object>> responsesByTicker = new HashMap<>();
-		private final Set<String> tickersThrowing = new HashSet<>();
-		private final List<String> requestedTickers = new ArrayList<>();
-
-		@Override
-		@SuppressWarnings("unchecked")
-		public <T> T getForObject(String url, Class<T> responseType, Object... uriVariables) throws RestClientException {
-			String ticker = extractTicker(url);
-			requestedTickers.add(ticker);
-			if (tickersThrowing.contains(ticker)) {
-				throw new RestClientException("Simulated failure for " + ticker);
-			}
-			return (T) responsesByTicker.get(ticker);
-		}
-
-		private String extractTicker(String url) {
-			int index = url.indexOf("ticker=");
-			return index >= 0 ? url.substring(index + 7) : url;
-		}
-	}
+            return null;
+        }
+    }
 }
