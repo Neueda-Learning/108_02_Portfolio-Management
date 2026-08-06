@@ -13,7 +13,6 @@ pipeline {
     string(name: 'REGISTRY', defaultValue: 'ghcr.io', description: 'Container registry host')
     string(name: 'REGISTRY_NAMESPACE', defaultValue: 'sammed1174t', description: 'Registry namespace/user (GitHub org or username)')
     string(name: 'GITHUB_CREDENTIALS_ID', defaultValue: 'github-creds', description: 'Jenkins credentials ID for GitHub Container Registry (PAT with write:packages)')
-    string(name: 'BACKEND_HOST_PORT', defaultValue: '8081', description: 'Host port mapped to backend container port 8080')
   }
 
   environment {
@@ -107,12 +106,17 @@ DB_USER=root
 DB_PASSWORD=n3u3da!
 MYSQL_ROOT_PASSWORD=n3u3da!
 MYSQL_ROOT_HOST=%
-BACKEND_HOST_PORT=${BACKEND_HOST_PORT}
+BACKEND_HOST_PORT=8081
 EOF
 if docker compose version >/dev/null 2>&1; then
   COMPOSE_BIN="docker compose"
 else
   COMPOSE_BIN="docker-compose"
+fi
+# Safety check: fail fast if the workspace still has legacy 8080 backend mappings.
+if grep -Eq '8080:8080|backend:8080' docker-compose.prod.yml frontend/nginx.conf; then
+  echo 'Legacy 8080 backend config detected; expected 8081-only configuration.'
+  exit 1
 fi
 # Free the previous backend container name in case it is left behind from older runs.
 docker rm -f portfolio-backend >/dev/null 2>&1 || true
@@ -121,7 +125,7 @@ docker rm -f portfolio-backend >/dev/null 2>&1 || true
 $COMPOSE_BIN -f docker-compose.prod.yml config | sed -n '/backend:/,/frontend:/p'
 
 # Best-effort visibility into existing listeners for troubleshooting bind failures.
-ss -ltn 2>/dev/null | grep -E ':80 |:8080 |:8081 ' || true
+ss -ltn 2>/dev/null | grep -E ':80 |:8081 ' || true
 
 $COMPOSE_BIN -f docker-compose.prod.yml pull
 $COMPOSE_BIN -f docker-compose.prod.yml up -d --remove-orphans

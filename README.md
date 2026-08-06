@@ -55,7 +55,7 @@ Update database settings in:
 
 - `src/main/resources/application.properties`
 
-Default backend port is `8080`.
+Default backend port is `8081`.
 
 For Docker/Jenkins deployments, the app reads these environment variables:
 
@@ -141,7 +141,7 @@ Important Jenkins parameters (defaulted in `Jenkinsfile`):
 
 Swagger UI is available when backend is running:
 
-- `http://localhost:8080/swagger-ui/index.html`
+- `http://localhost:8081/swagger-ui/index.html`
 
 ## User Stories and Task Tracking
 
