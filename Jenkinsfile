@@ -89,7 +89,7 @@ pipeline {
       steps {
         script {
           withCredentials([usernamePassword(credentialsId: params.DOCKERHUB_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-            sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+            sh 'printf "%s" "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
             sh "docker push ${env.BACKEND_IMAGE}:${env.IMAGE_TAG}"
             sh "docker push ${env.FRONTEND_IMAGE}:${env.IMAGE_TAG}"
           }
