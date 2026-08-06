@@ -12,10 +12,19 @@ pipeline {
         GIT_URL = 'https://github.com/Neueda-Learning/108_02_Portfolio-Management.git'
         BRANCH = 'main'
         CHECKOUT_DIR = 'repo'
-        COMPOSE_CMD = ''
     }
 
     stages {
+
+        stage('Prepare Workspace') {
+            steps {
+                script {
+                    // Isolate each run from stale root-owned files in old workspaces.
+                    env.CHECKOUT_DIR = "repo-${env.BUILD_NUMBER}"
+                    echo "Using checkout directory: ${env.CHECKOUT_DIR}"
+                }
+            }
+        }
 
         stage('Checkout Source') {
             steps {
@@ -28,25 +37,29 @@ pipeline {
 
         stage('Detect Compose CLI') {
             steps {
-                script {
-                    def v2Status = sh(script: 'docker compose version >/dev/null 2>&1', returnStatus: true)
-                    def v1Status = sh(script: 'docker-compose version >/dev/null 2>&1', returnStatus: true)
-                    if (v2Status == 0) {
-                        env.COMPOSE_CMD = 'docker compose'
-                    } else if (v1Status == 0) {
-                        env.COMPOSE_CMD = 'docker-compose'
-                    } else {
-                        error('Neither docker compose nor docker-compose is available on this Jenkins agent.')
-                    }
-                    echo "Using compose command: ${env.COMPOSE_CMD}"
-                }
+                sh '''
+if docker compose version >/dev/null 2>&1; then
+  echo "Using compose command: docker compose"
+elif docker-compose version >/dev/null 2>&1; then
+  echo "Using compose command: docker-compose"
+else
+  echo "Neither docker compose nor docker-compose is available on this Jenkins agent."
+  exit 1
+fi
+'''
             }
         }
 
         stage('Stop Existing Containers') {
             steps {
                 dir("${CHECKOUT_DIR}") {
-                    sh '${COMPOSE_CMD} down || true'
+                    sh '''
+if docker compose version >/dev/null 2>&1; then
+  docker compose down || true
+else
+  docker-compose down || true
+fi
+'''
                 }
             }
         }
@@ -54,7 +67,13 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 dir("${CHECKOUT_DIR}") {
-                    sh '${COMPOSE_CMD} build --no-cache'
+                    sh '''
+if docker compose version >/dev/null 2>&1; then
+  docker compose build --no-cache
+else
+  docker-compose build --no-cache
+fi
+'''
                 }
             }
         }
@@ -62,7 +81,13 @@ pipeline {
         stage('Deploy') {
             steps {
                 dir("${CHECKOUT_DIR}") {
-                    sh '${COMPOSE_CMD} up -d'
+                    sh '''
+if docker compose version >/dev/null 2>&1; then
+  docker compose up -d
+else
+  docker-compose up -d
+fi
+'''
                 }
             }
         }
