@@ -15,6 +15,24 @@ A full-stack portfolio management app built with Spring Boot (backend) and React
 - **Backend:** Java 17, Spring Boot, Maven, MySQL
 - **Frontend:** React, Vite, Tailwind CSS
 
+## Docker / Jenkins Deployment
+
+The repository includes the files needed for Jenkins + Docker deployment:
+
+- `Jenkinsfile`
+- `Dockerfile.backend`
+- `frontend/Dockerfile`
+- `frontend/nginx.conf`
+- `docker-compose.yml`
+- `docker-compose.prod.yml`
+- `.env.example`
+- `.dockerignore`
+
+Database defaults are configured to use:
+
+- MySQL root user: `root`
+- Password: `n3u3da!`
+
 ## Project Structure
 
 - `src/main/java` - Spring Boot application code
@@ -36,17 +54,26 @@ Update database settings in:
 
 Default backend port is `8080`.
 
+For Docker/Jenkins deployments, the app reads these environment variables:
+
+- `DB_HOST`
+- `DB_PORT`
+- `DB_NAME`
+- `DB_USER`
+- `DB_PASSWORD`
+- `SERVER_PORT`
+
 ## Run the Backend
 
 ```powershell
-Set-Location "c:\Users\Administrator\Downloads\demo-main\108_02_Portfolio-Management-main\108_02_Portfolio-Management-main\Portfolio-Management"
-mvn spring-boot:run
+Set-Location "C:\Users\Administrator\108_02_Portfolio-Management"
+.\mvnw.cmd spring-boot:run
 ```
 
 ## Run the Frontend
 
 ```powershell
-Set-Location "c:\Users\Administrator\Downloads\demo-main\108_02_Portfolio-Management-main\108_02_Portfolio-Management-main\Portfolio-Management\frontend"
+Set-Location "C:\Users\Administrator\108_02_Portfolio-Management\frontend"
 npm install
 npm run dev
 ```
@@ -58,16 +85,27 @@ Frontend dev server runs on Vite default port (usually `5173`).
 Backend:
 
 ```powershell
-Set-Location "c:\Users\Administrator\Downloads\demo-main\108_02_Portfolio-Management-main\108_02_Portfolio-Management-main\Portfolio-Management"
-mvn clean package
+Set-Location "C:\Users\Administrator\108_02_Portfolio-Management"
+.\mvnw.cmd -Dmaven.test.skip=true clean package
 ```
 
 Frontend:
 
 ```powershell
-Set-Location "c:\Users\Administrator\Downloads\demo-main\108_02_Portfolio-Management-main\108_02_Portfolio-Management-main\Portfolio-Management\frontend"
+Set-Location "C:\Users\Administrator\108_02_Portfolio-Management\frontend"
 npm run build
 ```
+
+## Docker Compose
+
+Local/dev:
+
+```powershell
+Set-Location "C:\Users\Administrator\108_02_Portfolio-Management"
+docker compose up --build
+```
+
+Production/Jenkins uses `docker-compose.prod.yml` with the same root MySQL credentials from `.env.example`.
 
 ## API Docs
 
