@@ -9,7 +9,7 @@ pipeline {
 
   environment {
 	REGISTRY = 'docker.io'
-	REGISTRY_NAMESPACE = 'your-dockerhub-username'
+	REGISTRY_NAMESPACE = 'admin'
 	CHECKOUT_DIR = 'repo'
 	BACKEND_REPO = 'portfolio-backend'
 	FRONTEND_REPO = 'portfolio-frontend'
@@ -111,7 +111,7 @@ BACKEND_IMAGE=${REGISTRY}/${REGISTRY_NAMESPACE}/${BACKEND_REPO}
 FRONTEND_IMAGE=${REGISTRY}/${REGISTRY_NAMESPACE}/${FRONTEND_REPO}
 IMAGE_TAG=${IMAGE_TAG}
 DB_NAME=portfolio_db
-DB_USER=portfolio
+DB_USER=root
 DB_PASSWORD=${DB_PASSWORD}
 MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 EOF
@@ -126,7 +126,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
   echo FRONTEND_IMAGE=%REGISTRY%/%REGISTRY_NAMESPACE%/%FRONTEND_REPO%
   echo IMAGE_TAG=%IMAGE_TAG%
   echo DB_NAME=portfolio_db
-  echo DB_USER=portfolio
+  echo DB_USER=root
   echo DB_PASSWORD=%DB_PASSWORD%
   echo MYSQL_ROOT_PASSWORD=%MYSQL_ROOT_PASSWORD%
 ) > .env
