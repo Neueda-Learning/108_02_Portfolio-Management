@@ -24,10 +24,19 @@ pipeline {
 
   stages {
 
+    stage('Prepare Workspace') {
+      steps {
+        script {
+          def buildId = (env.BUILD_NUMBER ?: 'manual').toString()
+          env.CHECKOUT_DIR = "repo-${buildId}"
+          echo "Using checkout directory: ${env.CHECKOUT_DIR}"
+        }
+      }
+    }
+
     stage('Checkout') {
       steps {
         dir(env.CHECKOUT_DIR) {
-          deleteDir()
           git branch: "${params.BRANCH}", url: "${params.GIT_URL}"
         }
       }
