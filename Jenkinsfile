@@ -2,35 +2,68 @@ pipeline {
 
     agent any
 
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        skipDefaultCheckout(true)
+    }
+
     environment {
         GIT_URL = 'https://github.com/Neueda-Learning/108_02_Portfolio-Management.git'
         BRANCH = 'main'
+        CHECKOUT_DIR = 'repo'
+        COMPOSE_CMD = ''
     }
 
     stages {
 
         stage('Checkout Source') {
             steps {
-                git branch: "${BRANCH}",
-                    url: "${GIT_URL}"
+                dir("${CHECKOUT_DIR}") {
+                    git branch: "${BRANCH}",
+                        url: "${GIT_URL}"
+                }
+            }
+        }
+
+        stage('Detect Compose CLI') {
+            steps {
+                script {
+                    def v2Status = sh(script: 'docker compose version >/dev/null 2>&1', returnStatus: true)
+                    def v1Status = sh(script: 'docker-compose version >/dev/null 2>&1', returnStatus: true)
+                    if (v2Status == 0) {
+                        env.COMPOSE_CMD = 'docker compose'
+                    } else if (v1Status == 0) {
+                        env.COMPOSE_CMD = 'docker-compose'
+                    } else {
+                        error('Neither docker compose nor docker-compose is available on this Jenkins agent.')
+                    }
+                    echo "Using compose command: ${env.COMPOSE_CMD}"
+                }
             }
         }
 
         stage('Stop Existing Containers') {
             steps {
-                sh 'docker-compose down || true'
+                dir("${CHECKOUT_DIR}") {
+                    sh '${COMPOSE_CMD} down || true'
+                }
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker-compose build --no-cache'
+                dir("${CHECKOUT_DIR}") {
+                    sh '${COMPOSE_CMD} build --no-cache'
+                }
             }
         }
 
         stage('Deploy') {
             steps {
-                sh 'docker-compose up -d'
+                dir("${CHECKOUT_DIR}") {
+                    sh '${COMPOSE_CMD} up -d'
+                }
             }
         }
 
