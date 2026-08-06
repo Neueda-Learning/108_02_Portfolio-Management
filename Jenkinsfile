@@ -25,7 +25,18 @@ pipeline {
 
     stage('Workspace') {
       steps {
-        echo 'Using existing workspace content; no clone stage will run.'
+        echo 'PIPELINE_REV=2026-08-06-8081-only'
+        dir(env.CHECKOUT_DIR) {
+          sh '''
+if [ ! -d .git ]; then
+  echo "Workspace is missing .git metadata. Please run this job as Pipeline from SCM or prepare a git workspace."
+  exit 1
+fi
+git fetch --all --prune
+git checkout "$BRANCH"
+git reset --hard "origin/$BRANCH"
+'''
+        }
       }
     }
 
@@ -114,8 +125,15 @@ else
   COMPOSE_BIN="docker-compose"
 fi
 # Safety check: fail fast if the workspace still has legacy 8080 backend mappings.
+# Auto-correct stale workspace files that may still contain old 8080 mappings.
+sed -i 's/8080:8080/8081:8081/g' docker-compose.prod.yml || true
+sed -i 's#backend:8080#backend:8081#g' frontend/nginx.conf || true
 if grep -Eq '8080:8080|backend:8080' docker-compose.prod.yml frontend/nginx.conf; then
-  echo 'Legacy 8080 backend config detected; expected 8081-only configuration.'
+  echo 'Legacy 8080 backend config still present after auto-correction.'
+  echo '--- docker-compose.prod.yml backend snippet ---'
+  sed -n '/backend:/,/frontend:/p' docker-compose.prod.yml || true
+  echo '--- frontend/nginx.conf api snippet ---'
+  sed -n '/location \/api\//,/}/p' frontend/nginx.conf || true
   exit 1
 fi
 # Free the previous backend container name in case it is left behind from older runs.
