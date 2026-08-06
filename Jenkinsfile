@@ -133,7 +133,7 @@ if grep -Eq '8080:8080|backend:8080' docker-compose.prod.yml frontend/nginx.conf
   echo '--- docker-compose.prod.yml backend snippet ---'
   sed -n '/backend:/,/frontend:/p' docker-compose.prod.yml || true
   echo '--- frontend/nginx.conf api snippet ---'
-  sed -n '/location \/api\//,/}/p' frontend/nginx.conf || true
+  awk 'index($0,"location /api/"),/}/' frontend/nginx.conf || true
   exit 1
 fi
 # Free the previous backend container name in case it is left behind from older runs.
